@@ -1,13 +1,13 @@
 const path = require('path');
 
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-// const ExtractTextPlugin = require('extract-text-webpack-plugin');
-// const CopyWebpackPlugin = require('copy-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
-    index: './src/YandexMusicVoiceAssistant.js',
-    getMicrophoneAccess: './src/getMicrophoneAccess.js'
+    background: './src/background.js',
+    getMicrophoneAccess: './src/getMicrophoneAccess.js',
+    YandexMusicVoiceAssistantManager: './src/YandexMusicVoiceAssistantManager.js',
   },
 	output: {
 		path: path.resolve(__dirname, '../dist'),
@@ -32,16 +32,22 @@ module.exports = {
             ]
           }
         }
-      }
+      },
     ]
   },
   plugins: [
-    new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, '../src/options.html'),
-      inject: 'body',
-      chunks: ['options'],
-      filename: 'options.html'
-    })
+    new CopyWebpackPlugin([
+      {
+        context: path.resolve(__dirname),
+        from: path.resolve(__dirname, '../src/manifest.json'),
+        to: path.resolve(__dirname, '../dist'),
+      },
+      {
+        context: path.resolve(__dirname),
+        from: path.resolve(__dirname, '../src/ym-get-microphone-access.html'),
+        to: path.resolve(__dirname, '../dist'),
+      },
+    ]),
   ],
   devtool: 'inline-source-map',
 };

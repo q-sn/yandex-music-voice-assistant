@@ -401,6 +401,7 @@ annyang = {
           registerCommand(commandToRegExp(phrase), cb, phrase);
         } else if (typeof cb === 'object' && cb.regexp instanceof RegExp) {
           // register the command
+          console.log(` new RegExp(cb.regexp.source, 'i')`,  new RegExp(cb.regexp.source, 'i'))
           registerCommand(
             new RegExp(cb.regexp.source, 'i'),
             cb.callback,

@@ -1,69 +1,87 @@
 import annyang from './vendor/annyang.js'
-console.log(`annyang`, annyang)
+import backgroundInit from "./backgroundInit"
 
-// TODO: черный список треков
-// TODO: находится ли трек в избранном? удалить из избранного
+const debug = require('debug/dist/debug')('ym');
+
 class YandexMusicVoiceAssistant {
 
-	constructor() {
+	constructor(config) {
+	  this._config = {
+      runByKeyword: true,
+      keyword: 'Катя',
+    };
 		this._annyangCommands = {
+      music: {
+        regexp: this._command({ command: `слушать музыку` }),
+        callback: async () => {
+          await this._createYandexMusicPage();
+          this._exec({ command: 'trackPlay' });
+        }
+      },
 			trackNext: {
-				regexp: new RegExp('следующ'),
-				callback: this.exec.bind(this, { command: 'trackNext' })
+        regexp: this._command({ command: `следующ` }),
+				callback: this._exec.bind(this, { command: 'trackNext' })
 			},
 			trackPrev: {
-				regexp: new RegExp('предыдущ'),
-				callback: this.exec.bind(this, { command: 'trackPrev' })
+        regexp: this._command({ command: `предыдущ` }),
+				callback: this._exec.bind(this, { command: 'trackPrev' })
 			},
 			trackPause: {
-				regexp: new RegExp('останови|выключи|пауз'),
-				callback: this.exec.bind(this, { command: 'trackPause' })
+        regexp: this._command({ command: `останови|выключи|пауз|стоп` }),
+				callback: this._exec.bind(this, { command: 'trackPause' })
 			},
 			trackRepeat: {
-				regexp: new RegExp('повтор|заново'),
-				callback: this.exec.bind(this, { command: 'trackRepeat' })
+        regexp: this._command({ command: `повтор|заново` }),
+				callback: this._exec.bind(this, { command: 'trackRepeat' })
 			},
 			playArtist: {
-				regexp: /([\w\W]?)+группа([\w\W]+)/i,
-				callback: (garbage, artist) => this.exec({ command: 'playArtist', data: artist })
+        regexp: this._command({ command: '([\\w\\W]?)+группа([\\w\\W]+)' }),
+				callback: (...args) => this._exec({ command: 'playArtist', data: args[args.length - 1].trim() })
+			},
+			playSong: {
+        regexp: this._command({ command: '([\\w\\W]?)+песня([\\w\\W]+)' }),
+				callback: (...args) => this._exec({ command: 'playSong', data: args[args.length - 1].trim() })
 			},
 			trackPlay: {
-				regexp: new RegExp('включи'),
-				callback: this.exec.bind(this, { command: 'trackPlay' })
+        regexp: this._command({ command: `включи` }),
+				callback: this._exec.bind(this, { command: 'trackPlay' })
 			},
 			trackName: {
-				regexp: new RegExp('название|называется'),
-				callback: this.exec.bind(this, { command: 'trackName' })
+        regexp: this._command({ command: `название|называется|что играет` }),
+				callback: this._exec.bind(this, { command: 'trackName' })
 			},
 			trackForward: {
-				regexp: new RegExp('вперед|вперёд'),
-				callback: this.exec.bind(this, { command: 'trackForward' })
+        regexp: this._command({ command: `вперед|вперёд` }),
+				callback: this._exec.bind(this, { command: 'trackForward' })
 			},
 			trackBack: {
-				regexp: new RegExp('назад'),
-				callback: this.exec.bind(this, { command: 'trackBack' })
+        regexp: this._command({ command: `назад` }),
+				callback: this._exec.bind(this, { command: 'trackBack' })
 			},
 			trackSave: {
-				regexp: new RegExp('сохрани|добав'),
-				callback: this.exec.bind(this, { command: 'trackSave' })
+        regexp: this._command({ command: `сохрани|добав` }),
+				callback: this._exec.bind(this, { command: 'trackSave' })
 			},
 			trackDelete: {
-				regexp: new RegExp('удали'),
-				callback: this.exec.bind(this, { command: 'trackDelete' })
+        regexp: this._command({ command: `удали` }),
+				callback: this._exec.bind(this, { command: 'trackDelete' })
 			},
 			volumeUp: {
-				regexp: new RegExp('громче|увелич|повыс'),
-				callback: this.exec.bind(this, { command: 'volumeUp' })
+        regexp: this._command({ command: `громче|увелич|повыс` }),
+				callback: this._exec.bind(this, { command: 'volumeUp' })
 			},
 			volumeDown: {
-				regexp: new RegExp('тише|уменьш|пониз'),
-				callback: this.exec.bind(this, { command: 'volumeDown' })
+				regexp: this._command({ command: `тише|уменьш|пониз` }),
+				callback: this._exec.bind(this, { command: 'volumeDown' })
 			},
 		};
 	}
 
-	init() {
-	  console.log(`init`)
+	async init() {
+    debug('YandexMusicVoiceAssistant init()');
+
+    await this._createYandexMusicPage();
+
 		annyang.setLanguage('ru-RU');
 
 		annyang.addCommands(this._annyangCommands);
@@ -71,13 +89,46 @@ class YandexMusicVoiceAssistant {
 		annyang.debug(true);
 
 		annyang.start({ continuous: true });
+
+		setInterval(async () => {
+		  try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (error) {
+        if (error.message === 'Failed due to shutdown') {
+          await backgroundInit();
+        }
+      }
+    }, 5000)
 	}
 
-	exec({ command, data }) {
-		this.sendMessage({ tabInfo: { url: '*://music.yandex.ru/*' }, command, data});
+	async _createYandexMusicPage() {
+    debug('YandexMusicVoiceAssistant _createYandexMusicPage()');
+	  return new Promise((resolve, reject) => {
+      chrome.tabs.create({
+        url: "https://music.yandex.ru/home",
+        selected: true
+      }, () => {
+        // TODO: резолвить только тогда, когда от новой вкладки получили ответ о загрузке яндекс менеджера
+        resolve();
+      });
+    })
+  }
+
+  _command({ command, method = true }) {
+    debug('YandexMusicVoiceAssistant _command() %s', `${this._config.runByKeyword && `${this._config.keyword} `}${command}`);
+    if (this._config.runByKeyword) {
+      return new RegExp(`${this._config.keyword} (${command})`);
+    } else {
+      return new RegExp(command);
+    }
+  }
+
+	_exec({ command, data }) {
+	  debug(`YandexMusicVoiceAssistant _exec() command: %o, data: %o`, command, data);
+		this._sendMessage({ tabInfo: { url: '*://music.yandex.ru/*' }, command, data});
 	}
 
-	sendMessage({ tabInfo, command, data }) {
+	_sendMessage({ tabInfo, command, data }) {
 		chrome.tabs.query(tabInfo, (tabs) => {
 			if (tabs.length) {
 				const audibleTab = tabs.find(tab => !!tab.audible);
@@ -94,25 +145,4 @@ class YandexMusicVoiceAssistant {
 	}
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-	console.log(`Yandex music voice assistant is started`);
-	console.log(`annyang`, annyang)
-
-	setTimeout(() => {
-		navigator.mediaDevices.getUserMedia({ audio: true })
-			.then(() => {
-				let _YandexMusicVoiceAssistant = new YandexMusicVoiceAssistant();
-				_YandexMusicVoiceAssistant.init();
-
-				console.log(`_YandexMusicVoiceAssistant`, _YandexMusicVoiceAssistant)
-			})
-			.catch((error) => {
-				console.log(3, error);
-				chrome.tabs.create({
-					url: chrome.extension.getURL("options.html"),
-					selected: true
-				})
-			})
-
-	}, 100);
-});
+export default YandexMusicVoiceAssistant;

@@ -109,6 +109,41 @@ chrome.runtime.onMessage.addListener((request) => {
 			` });
 
 			break;
+		case 'playSong':
+			console.log('playSong')
+
+			localStorage.setItem('yandexMusicVoiceAssistantCommand', `
+			let interval = setInterval(() => {
+				console.log(1);
+				
+				if (document.getElementsByClassName('d-track__name') && document.getElementsByClassName('d-track__name')[0]) {
+					
+					document.getElementsByClassName('d-track__name')[0].getElementsByClassName('d-track__title')[0].click();
+					
+					clearInterval(interval);
+				}
+			}, 100)
+			
+			let interval1 = setInterval(() => {
+        console.log(2);
+
+        if (document.getElementsByClassName('sidebar-track__play') && document.getElementsByClassName('sidebar-track__play')[0]) {
+        
+          document.getElementsByClassName('sidebar-track__play')[0].click();
+        
+          localStorage.removeItem('yandexMusicVoiceAssistantCommand');
+          clearInterval(interval1);
+        }
+        }, 100)     
+      `);
+
+			executeCode({ code: `
+			
+			window.location = 'https://music.yandex.ru/search?text=${request.data}&type=tracks';
+			
+			` });
+
+			break;
 		case 'trackName':
 			console.log('trackName')
 			const trackName = getVariable({ name: 'externalAPI.getCurrentTrack().title' });
